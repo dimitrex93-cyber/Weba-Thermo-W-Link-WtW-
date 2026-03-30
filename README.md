@@ -73,3 +73,47 @@ Die Firmware enthaelt bereits eine vorbereitete ESP-NOW-Bruecke fuer eine spaete
 * Geplante Befehle von der Fernbedienung: Start, Stop, Status anfordern.
 
 Sobald der ESP32-C3 fertig ist, kann das Flag aktiviert und die Peer-MAC in `include/config.h` eingetragen werden.
+
+---
+
+## 6. Pinout (ESP8266 NodeMCU)
+
+* `D8` (`GPIO15`): W-Bus TX
+* `D7` (`GPIO13`): W-Bus RX
+* `D6` (`GPIO12`): I2C SDA (RJ45 / Display / Sensoren)
+* `D5` (`GPIO14`): I2C SCL (RJ45 / Display / Sensoren)
+* `D2` (`GPIO4`): LED Green
+* `D1` (`GPIO5`): LED Yellow
+* `RST`: 433 MHz Wake (Optokoppler)
+
+## 7. Build & Flash
+
+### Build
+
+```bash
+pio run -e esp8266
+```
+
+### Upload
+
+```bash
+pio run -t upload -e esp8266 --upload-port /dev/ttyUSB0
+```
+
+### Serial Monitor
+
+```bash
+pio device monitor -b 115200 --port /dev/ttyUSB0
+```
+
+## 8. ESP-NOW Kopplung (mit Weba-Remote)
+
+In `include/config.h` muessen folgende Werte passen:
+
+* `ENABLE_ESPNOW_LINK 1`
+* `ESPNOW_WIFI_CHANNEL` identisch auf beiden Geraeten
+* `ESPNOW_REMOTE_PEER_MAC_*` = MAC des ESP32-C3
+
+## 9. Release
+
+Dieses Repository ist fuer den initialen gemeinsamen Stand mit ESP32-C3-Remote als `v1.0.0` vorgesehen.
