@@ -83,7 +83,9 @@ void setup() {
   }
   
   wbus.initialize();
-  power.initialize();
+  // Logische Zeit + persistierte Energie übergeben (Review 04.08.2026):
+  // sonst Energie-Zeitbasen-Mix und Verlust der kumulierten Energie.
+  power.initialize(data.getCurrentTime(), data.getEnergy());
   if (!logger.initialize()) {
     Serial.println("! Log manager initialization failed");
   } else {
@@ -141,7 +143,9 @@ void loop() {
 
   espNow.updateStatusSnapshot(state, data.isHeatingActive(), state.restzeit, state.aktuelleZeit);
   espNow.loop(state.aktuelleZeit);
-  display.setEspNowLinkAlive(espNow.isLinkAlive(state.aktuelleZeit, 20));
+  // Millis-Basis (Review 04.08.2026): vorher logische Zeit -> Link „tot"
+  // bei startTick>0.
+  display.setEspNowLinkAlive(espNow.isLinkAlive(millis(), 20000));
 
   EspNowCommandType pendingCmd = ESPNOW_CMD_NONE;
   if (espNow.popPendingCommand(pendingCmd)) {
@@ -178,7 +182,9 @@ void loop() {
 
     if ((int32_t)(nowTick - nextHeartbeatDueTick) >= 0) {
       digitalWrite(LED_YELLOW, HIGH);
-      bool heartbeatOk = wbus.isHeaterReady();
+      // WICHTIG (Review 04.08.2026): bei laufender Heizung KEINEN
+      // STOP-Ping senden (früher schaltete der Heartbeat die Heizung ab).
+      bool heartbeatOk = wbus.isHeaterReady(true);
       digitalWrite(LED_YELLOW, LOW);
 
       #if ENABLE_SERIAL_DEBUG
@@ -340,9 +346,12 @@ void handleTimerWake() {
   // Read all sensors
   sensors.readAll(state);
   
-  // Check battery health
+  // Check battery health – nur bei gültiger INA226-Messung (Review
+  // 04.08.2026): bei I2C-Fehler stand 0 V da und erzwang einen Stopp.
   bool shouldStopHeating = false;
-  power.checkBatteryHealth(state.batterieSpannung, shouldStopHeating);
+  if (state.ina226Status == SENSOR_OK) {
+    power.checkBatteryHealth(state.batterieSpannung, shouldStopHeating);
+  }
   
   if (data.isHeatingActive()) {
     processHeatingStatus(shouldStopHeating);

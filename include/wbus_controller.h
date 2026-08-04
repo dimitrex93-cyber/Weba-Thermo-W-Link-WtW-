@@ -46,7 +46,10 @@ public:
     pinMode(W_BUS_RX, INPUT);
   }
   
-  bool isHeaterReady() {
+  // heaterRunning=true (Heartbeat bei laufender Heizung): KEIN Befehl senden!
+  // Die alte Implementierung nutzte WBUS_STOP_CMD als Probe und schickte
+  // damit regelmäßig STOP an die laufende Heizung (Review 04.08.2026).
+  bool isHeaterReady(bool heaterRunning = false) {
     #if WORKBENCH_MODE
     return true;
     #endif
@@ -56,7 +59,12 @@ public:
     #endif
 
     begin();
-    // Use STOP as non-critical probe to verify ECU communication on K-Line.
+    if (heaterRunning) {
+      // Heizung läuft bereits: Die laufende Heizung selbst ist der
+      // Alive-Beweis. Kein Ping, um den Betrieb nicht zu stören.
+      return true;
+    }
+    // Heizung ist aus: STOP als harmlose Kommunikationsprobe verwenden.
     return sendCommand(WBUS_STOP_CMD, WBUS_CMD_SIZE);
   }
 

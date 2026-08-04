@@ -27,15 +27,15 @@ private:
   static constexpr float BUS_VOLTAGE_LSB = 0.00125f;      // 1.25 mV per LSB
   static constexpr uint16_t CONFIG_VALUE = 0x4527;        // Continuous mode
   
-  int16_t readRegister(uint8_t reg) {
+  bool readRegister(uint8_t reg, int16_t& out) {
     Wire.beginTransmission(address);
     Wire.write(reg);
-    if (Wire.endTransmission(false) != 0) return 0;
+    if (Wire.endTransmission(false) != 0) return false;
     
-    if (Wire.requestFrom(address, (uint8_t)2) < 2) return 0;
+    if (Wire.requestFrom(address, (uint8_t)2) < 2) return false;
     
-    int16_t result = ((int16_t)Wire.read() << 8) | Wire.read();
-    return result;
+    out = ((int16_t)Wire.read() << 8) | Wire.read();
+    return true;
   }
   
   void writeRegister(uint8_t reg, uint16_t value) {
@@ -59,22 +59,30 @@ public:
     writeRegister(REG_CONFIG, CONFIG_VALUE);
     delay(I2C_INIT_DELAY_MS);
     
-    // Set calibration register for max current range
-    uint16_t calibration = (uint16_t)((0.04096f) / (INA226_MAX_CURRENT * shuntResistor));
+    // Set calibration register for max current range.
+    // ACHTUNG (Review 04.08.2026): alte Formel 0.04096/(Imax*Rshunt)
+    // ergab (uint16_t)0.2048 = 0 -> Strom/Energie immer 0.
+    // Korrekt: CAL = 0.00512 / (currentLSB * Rshunt), currentLSB = Imax/32768.
+    // Mit Imax=20A, Rshunt=0.01Ohm: CAL ~= 839.
+    float currentLSB = INA226_MAX_CURRENT / 32768.0f;
+    uint16_t calibration = (uint16_t)(0.00512f / (currentLSB * shuntResistor) + 0.5f);
     writeRegister(REG_CALIBRATION, calibration);
     
     #if DEBUG_INA226
-    Serial.printf(">> INA226 calibration: 0x%04X\n", calibration);
+    Serial.printf(">> INA226 calibration: 0x%04X (%u)\n", calibration, calibration);
     #endif
     
     return true;
   }
   
-  // Optimized: Read all values in one burst
-  void readAll(float& voltage, float& current, float& power) {
-    int16_t busVoltageRaw = readRegister(REG_BUS_VOLTAGE);
-    int16_t currentRaw = readRegister(REG_CURRENT);
-    int16_t powerRaw = readRegister(REG_POWER);
+  // Optimized: Read all values in one burst.
+  // Liefert false bei I2C-Fehler (Aufrufer darf dann keine 0-Werte
+  // als echte Messung verwenden – sonst droht ein falscher Heiz-Stopp).
+  bool readAll(float& voltage, float& current, float& power) {
+    int16_t busVoltageRaw, currentRaw, powerRaw;
+    if (!readRegister(REG_BUS_VOLTAGE, busVoltageRaw)) return false;
+    if (!readRegister(REG_CURRENT, currentRaw)) return false;
+    if (!readRegister(REG_POWER, powerRaw)) return false;
     
     // Voltage: Bits 15-3 are significant (12-bit), multiply by 1.25mV
     voltage = (busVoltageRaw >> 3) * BUS_VOLTAGE_LSB;
@@ -84,20 +92,24 @@ public:
     
     // Power: 16-bit value
     power = powerRaw * powerLSB;
+    return true;
   }
   
   float readBusVoltage() {
-    int16_t raw = readRegister(REG_BUS_VOLTAGE);
+    int16_t raw;
+    if (!readRegister(REG_BUS_VOLTAGE, raw)) return 0.0f;
     return (raw >> 3) * BUS_VOLTAGE_LSB;
   }
   
   float readCurrent() {
-    int16_t raw = readRegister(REG_CURRENT);
+    int16_t raw;
+    if (!readRegister(REG_CURRENT, raw)) return 0.0f;
     return raw * currentLSB;
   }
   
   float readPower() {
-    int16_t raw = readRegister(REG_POWER);
+    int16_t raw;
+    if (!readRegister(REG_POWER, raw)) return 0.0f;
     return raw * powerLSB;
   }
 };

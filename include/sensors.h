@@ -81,13 +81,25 @@ private:
   }
   
   void readBMP280(RuntimeState& state) {
-    state.luftdruck = bmp280.readPressure() / 100.0f;
+    float p = bmp280.readPressure() / 100.0f;
+    // Fehlerprüfung wie beim AHT20 (Review 04.08.2026): ohne Check
+    // stand „P: nan hPa“ auf dem Display und „nan“ in den CSV-Logs.
+    if (isnan(p) || p <= 0.0f) {
+      state.bmp280Status = SENSOR_FAILED;
+      return;
+    }
+    state.luftdruck = p;
     state.bmp280Status = SENSOR_OK;
   }
   
   void readINA226(RuntimeState& state) {
     float voltage, current, power;
-    ina226.readAll(voltage, current, power);
+    // Bei I2C-Fehler alte Werte behalten – 0 V würde sonst einen
+    // falschen Batterie-Zwangsstopp auslösen (Review 04.08.2026).
+    if (!ina226.readAll(voltage, current, power)) {
+      state.ina226Status = SENSOR_FAILED;
+      return;
+    }
     state.batterieSpannung = voltage;
     state.batterieStrom = current;
     state.batterieLeistung = power;

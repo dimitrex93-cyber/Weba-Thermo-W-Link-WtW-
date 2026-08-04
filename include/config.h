@@ -10,9 +10,11 @@
 #define W_BUS_RX D7                  // SoftwareSerial RX from SI9241A (GPIO13)
 
 // ============================================================
-// ESP-NOW LINK (ESP8266 <-> future ESP32-C3 remote)
+// ESP-NOW LINK (ESP8266 <-> ESP32-C3 remote)
 // ============================================================
-// Disabled by default until the ESP32-C3 remote is ready.
+// Aktiv (1): Der Link zum ESP32-C3-Remote ist in Betrieb.
+// (Kommentar/README angepasst am 04.08.2026 – vorher hieß es
+//  „Disabled by default", obwohl der Wert auf 1 stand.)
 #define ENABLE_ESPNOW_LINK 1
 #define ESPNOW_WIFI_CHANNEL 13
 #define ESPNOW_STATUS_INTERVAL_S 5
@@ -28,8 +30,10 @@
 // ============================================================
 // I2C CONFIGURATION (SSD1306 OLED + sensors)
 // ============================================================
-#define I2C_SDA 14                   // SDA – GPIO12 (D6)
-#define I2C_SCL 12                   // SCL – GPIO14 (D5)
+// ACHTUNG (Review 04.08.2026): Werte waren gegeneinander vertauscht.
+// Laut README/Platine: SDA = GPIO12 (D6), SCL = GPIO14 (D5).
+#define I2C_SDA 12                   // SDA – GPIO12 (D6)
+#define I2C_SCL 14                   // SCL – GPIO14 (D5)
 #define OLED_ADDR 0x3C               // SSD1306 I2C address
 // Die I2C adresse wird nicht genutzt, die standard adresse im OLED wird verwendet
 // ============================================================

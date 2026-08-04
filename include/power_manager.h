@@ -15,9 +15,14 @@ private:
   bool heatingActive = false;
   
 public:
-  void initialize() {
-    energyData.lastUpdateTime = millis() / 1000;
-    energyData.totalEnergy_Wh = 0.0f;
+  // ACHTUNG (Review 04.08.2026): 
+  // - currentTime auf LOGISCHER Zeitbasis (data.getCurrentTime()), sonst
+  //   verfälscht startTick>0 die Energie-Berechnung (Zeitbasen-Mix).
+  // - startEnergyWh aus dem RTC-Speicher (data.getEnergy()) laden, sonst
+  //   geht die kumulierte Energie bei jedem Reset verloren.
+  void initialize(uint32_t currentTime, float startEnergyWh) {
+    energyData.lastUpdateTime = currentTime;
+    energyData.totalEnergy_Wh = startEnergyWh;
     energyData.peakPower_W = 0.0f;
     energyData.heatingCycles = 0;
   }

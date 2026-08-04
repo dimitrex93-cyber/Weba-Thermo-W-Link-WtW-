@@ -46,6 +46,10 @@ struct RTCData {
   uint8_t lastHumidity;              // 0-100%
   uint8_t displayPage;               // Last rendered page across sleep cycles
   uint16_t lastSleepDuration_s;      // Planned deep sleep duration before the current boot
+  // ACHTUNG (Review 04.08.2026): ESP.rtcUserMemoryRead/Write verlangen
+  // eine Größe als Vielfaches von 4 – 38 Byte schlugen still fehl.
+  // Padding auf 40 Byte (memset in resetRTC nullt es).
+  uint16_t padding;
 };
 #pragma pack(pop)
 

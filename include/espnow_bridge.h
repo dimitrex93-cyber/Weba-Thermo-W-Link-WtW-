@@ -152,16 +152,19 @@ public:
 #endif
   }
 
-  bool isLinkAlive(uint32_t nowS, uint16_t timeoutS = 20) const {
+  bool isLinkAlive(uint32_t nowMs, uint16_t timeoutMs = 20000) const {
 #if ENABLE_ESPNOW_LINK
     if (!initialized_ || !hasRx_) {
       return false;
     }
 
-    return (uint32_t)(nowS - lastRxTimeS_) <= timeoutS;
+    // Millis-Basis (Review 04.08.2026): vorher verglich lastRxTimeS_
+    // (Boot-Zeit) mit der logischen Zeit -> bei startTick>0 war der
+    // Link dauerhaft „tot".
+    return (uint32_t)(nowMs - lastRxTimeMs_) <= timeoutMs;
 #else
-    (void)nowS;
-    (void)timeoutS;
+    (void)nowMs;
+    (void)timeoutMs;
     return false;
 #endif
   }
@@ -198,7 +201,7 @@ private:
 
     if (pkt.command >= ESPNOW_CMD_START_HEATER && pkt.command <= ESPNOW_CMD_REQUEST_STATUS) {
       pendingCommand_ = static_cast<EspNowCommandType>(pkt.command);
-      lastRxTimeS_ = millis() / 1000UL;
+      lastRxTimeMs_ = millis();   // volatile + Millis-Basis (Review 04.08.2026)
       hasRx_ = true;
     }
   }
@@ -213,8 +216,8 @@ private:
   volatile EspNowCommandType pendingCommand_ = ESPNOW_CMD_NONE;
   uint32_t nextStatusDueS_ = 0;
   bool statusDirty_ = true;
-  uint32_t lastRxTimeS_ = 0;
-  bool hasRx_ = false;
+  volatile uint32_t lastRxTimeMs_ = 0;   // volatile: Callback-Kontext (Review 04.08.2026)
+  volatile bool hasRx_ = false;
 #endif
 };
 

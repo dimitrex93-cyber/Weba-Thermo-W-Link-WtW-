@@ -66,13 +66,13 @@ Das System verfügt über einen eingebauten Datenlogger. Der ESP8266 nutzt seine
 
 ## 5. ESP-NOW Migrationsvorbereitung (ESP8266 <-> ESP32-C3)
 
-Die Firmware enthaelt bereits eine vorbereitete ESP-NOW-Bruecke fuer eine spaetere smarte Fernbedienung mit ESP32-C3 und 0.96" SSD1306.
+Die Firmware enthaelt eine ESP-NOW-Bruecke fuer die smarte Fernbedienung (ESP32-C3, Weba-Remote).
 
-* Feature-Flag: `ENABLE_ESPNOW_LINK` in `include/config.h` (standardmaessig `0`, also aus).
-* Geplante Fernbedienungsdaten: Innenraumtemperatur, Batteriespannung, Batterieleistung, Restlaufzeit, Heizstatus.
-* Geplante Befehle von der Fernbedienung: Start, Stop, Status anfordern.
+* Feature-Flag: `ENABLE_ESPNOW_LINK` in `include/config.h` (stand 04.08.2026: `1` = aktiv, der Link ist in Betrieb).
+* Fernbedienungsdaten: Innenraumtemperatur, Batteriespannung, Batterieleistung, Restlaufzeit, Heizstatus.
+* Befehle von der Fernbedienung: Start, Stop, Status anfordern.
 
-Sobald der ESP32-C3 fertig ist, kann das Flag aktiviert und die Peer-MAC in `include/config.h` eingetragen werden.
+Details zur Kopplung siehe Abschnitt 8 (ESP-NOW Kopplung mit Weba-Remote).
 
 ---
 

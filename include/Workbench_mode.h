@@ -9,8 +9,11 @@
 // DER HAUPTSCHALTER
 // 1 = Liegt auf'm Schreibtisch (Fake-Werte AN)
 // 0 = Ist im Auto eingebaut (Fake-Werte AUS)
+// ACHTUNG (Review 04.08.2026): Stand auf 1 – damit wurde im Auto
+// keine echte Heizung gesteuert und alle Sensoren simuliert.
+// Für den Echtbetrieb im Fahrzeug MUSS hier 0 stehen.
 // ============================================================
-#define WORKBENCH_MODE 1
+#define WORKBENCH_MODE 0
 
 struct WerkbankState {
   bool heizungAktiv;
