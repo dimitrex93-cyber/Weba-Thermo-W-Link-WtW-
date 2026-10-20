@@ -24,7 +24,11 @@ private:
   static constexpr uint8_t REG_CALIBRATION = 0x05;
   
   static constexpr float SHUNT_VOLTAGE_LSB = 0.0000025f;  // 2.5 µV per LSB
+  // INA226 (TI SBOS547): Busspannung = volles 16-Bit-Register 0x02, LSB 1,25 mV,
+  // Messbereich 0…40,96 V. KEIN Shift — (raw >> 3) ist das INA219-Format und
+  // teilt den Wert durch 8 (siehe Fix vom 20.10.2026, docs/ina226-busvoltage/).
   static constexpr float BUS_VOLTAGE_LSB = 0.00125f;      // 1.25 mV per LSB
+  static constexpr float BUS_VOLTAGE_MAX = 40.96f;        // ADC-Vollausschlag
   static constexpr uint16_t CONFIG_VALUE = 0x4527;        // Continuous mode
   
   bool readRegister(uint8_t reg, int16_t& out) {
@@ -35,6 +39,19 @@ private:
     if (Wire.requestFrom(address, (uint8_t)2) < 2) return false;
     
     out = ((int16_t)Wire.read() << 8) | Wire.read();
+    return true;
+  }
+  
+  // Busspannung und Leistung sind laut Datenblatt UNSIGNED 16 Bit
+  // (nur Strom/Shuntspannung sind vorzeichenbehaftet).
+  bool readRegisterU16(uint8_t reg, uint16_t& out) {
+    Wire.beginTransmission(address);
+    Wire.write(reg);
+    if (Wire.endTransmission(false) != 0) return false;
+    
+    if (Wire.requestFrom(address, (uint8_t)2) < 2) return false;
+    
+    out = ((uint16_t)Wire.read() << 8) | Wire.read();
     return true;
   }
   
@@ -79,26 +96,31 @@ public:
   // Liefert false bei I2C-Fehler (Aufrufer darf dann keine 0-Werte
   // als echte Messung verwenden – sonst droht ein falscher Heiz-Stopp).
   bool readAll(float& voltage, float& current, float& power) {
-    int16_t busVoltageRaw, currentRaw, powerRaw;
-    if (!readRegister(REG_BUS_VOLTAGE, busVoltageRaw)) return false;
+    uint16_t busVoltageRaw, powerRaw;
+    int16_t currentRaw;
+    if (!readRegisterU16(REG_BUS_VOLTAGE, busVoltageRaw)) return false;
     if (!readRegister(REG_CURRENT, currentRaw)) return false;
-    if (!readRegister(REG_POWER, powerRaw)) return false;
+    if (!readRegisterU16(REG_POWER, powerRaw)) return false;
     
-    // Voltage: Bits 15-3 are significant (12-bit), multiply by 1.25mV
-    voltage = (busVoltageRaw >> 3) * BUS_VOLTAGE_LSB;
+    // Busspannung: 16-Bit-Register, 1,25 mV je LSB, kein Shift (INA226).
+    voltage = busVoltageRaw * BUS_VOLTAGE_LSB;
     
     // Current: 16-bit signed value
     current = currentRaw * currentLSB;
     
-    // Power: 16-bit value
+    // Power: 16-bit unsigned value
     power = powerRaw * powerLSB;
+    
+    // Plausibilitaet: ueber dem ADC-Vollausschlag ist der Messwert unbrauchbar
+    // (verhindert, dass ein Fantasiewert in die Akku-Schwellen laeuft).
+    if (voltage > BUS_VOLTAGE_MAX) return false;
     return true;
   }
   
   float readBusVoltage() {
-    int16_t raw;
-    if (!readRegister(REG_BUS_VOLTAGE, raw)) return 0.0f;
-    return (raw >> 3) * BUS_VOLTAGE_LSB;
+    uint16_t raw;
+    if (!readRegisterU16(REG_BUS_VOLTAGE, raw)) return 0.0f;
+    return raw * BUS_VOLTAGE_LSB;
   }
   
   float readCurrent() {
@@ -108,8 +130,8 @@ public:
   }
   
   float readPower() {
-    int16_t raw;
-    if (!readRegister(REG_POWER, raw)) return 0.0f;
+    uint16_t raw;
+    if (!readRegisterU16(REG_POWER, raw)) return 0.0f;
     return raw * powerLSB;
   }
 };
